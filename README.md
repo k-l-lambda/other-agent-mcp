@@ -1,4 +1,4 @@
-# Subagent MCP
+# Other MCP
 
 An MCP (Model Context Protocol) server that provides a LangChain.js-powered subagent tool. It allows Claude Code (or any MCP client) to delegate tasks to another LLM.
 
