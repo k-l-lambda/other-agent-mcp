@@ -1,11 +1,11 @@
 {
-  "name": "subagent-mcp",
+  "name": "other-mcp",
   "version": "1.0.0",
   "description": "MCP server that runs LangChain.js agents as subagents",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "subagent-mcp": "./dist/index.js"
+    "other-mcp": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",

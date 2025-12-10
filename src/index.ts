@@ -17,7 +17,7 @@ import { getProviderInfo, listAvailableModels } from './providers.js';
 import type { RunAgentInput } from './types.js';
 
 const server = new McpServer({
-  name: 'subagent-mcp',
+  name: 'other-mcp',
   version: '1.0.0',
 });
 
@@ -45,7 +45,7 @@ SUBAGENT_MODELS format:
   async (args: RunAgentInput) => {
     try {
       const providerInfo = getProviderInfo(args.model);
-      console.error(`[subagent-mcp] Running agent with provider: ${providerInfo.provider}, model: ${providerInfo.model}${args.model ? ` (name: ${args.model})` : ''}`);
+      console.error(`[other-mcp] Running agent with provider: ${providerInfo.provider}, model: ${providerInfo.model}${args.model ? ` (name: ${args.model})` : ''}`);
 
       const result = await runAgent(args.prompt, {
         systemPrompt: args.system_prompt,
@@ -89,7 +89,7 @@ SUBAGENT_MODELS format:
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[subagent-mcp] Error: ${errorMessage}`);
+      console.error(`[other-mcp] Error: ${errorMessage}`);
       return {
         content: [
           {
@@ -154,10 +154,10 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[subagent-mcp] Server started');
+  console.error('[other-mcp] Server started');
 }
 
 main().catch((error) => {
-  console.error('[subagent-mcp] Fatal error:', error);
+  console.error('[other-mcp] Fatal error:', error);
   process.exit(1);
 });

@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that provides a LangChain.js-powered suba
 ## Installation
 
 ```bash
-cd /path/to/subagent-mcp
+cd /path/to/other-mcp
 npm install
 npm run build
 ```
@@ -98,7 +98,7 @@ claude mcp add -s user subagent \
   -e "SUBAGENT_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1" \
   -e "SUBAGENT_API_KEY=your-api-key" \
   -e "SUBAGENT_MODEL=qwen-max" \
-  -- node /path/to/subagent-mcp/dist/index.js
+  -- node /path/to/other-mcp/dist/index.js
 ```
 
 ### Multi-Model Setup
@@ -110,7 +110,7 @@ claude mcp add -s user subagent \
   -e "SUBAGENT_API_KEY=your-api-key" \
   -e "SUBAGENT_MODEL=qwen-max" \
   -e 'SUBAGENT_MODELS={"qwen-max":"qwen-max","qwen-turbo":"qwen-turbo","qwen-plus":"qwen-plus"}' \
-  -- node /path/to/subagent-mcp/dist/index.js
+  -- node /path/to/other-mcp/dist/index.js
 ```
 
 ### Multi-Provider Setup
@@ -122,7 +122,7 @@ claude mcp add -s user subagent \
   -e "SUBAGENT_PROVIDER=openai" \
   -e "SUBAGENT_API_KEY=your-qwen-key" \
   -e 'SUBAGENT_MODELS={"qwen":{"provider":"openai","modelId":"qwen-max","baseUrl":"https://dashscope.aliyuncs.com/compatible-mode/v1"},"local":{"provider":"openai","modelId":"llama3","baseUrl":"http://localhost:11434/v1","apiKey":"ollama"}}' \
-  -- node /path/to/subagent-mcp/dist/index.js
+  -- node /path/to/other-mcp/dist/index.js
 ```
 
 ## MCP Tools

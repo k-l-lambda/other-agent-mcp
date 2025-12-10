@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test with Anthropic-compatible API
-cd /home/camus/work/subagent-mcp
+cd /home/camus/work/other-mcp
 
 # Test the MCP server with Anthropic
 echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"run_agent","arguments":{"prompt":"What is 2+2? Answer in one word."}},"id":2}' | \

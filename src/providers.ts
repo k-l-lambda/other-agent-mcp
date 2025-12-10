@@ -40,7 +40,7 @@ function parseModelsRegistry(): ModelsRegistry {
 
     return registry;
   } catch (e) {
-    console.error('[subagent-mcp] Failed to parse SUBAGENT_MODELS:', e);
+    console.error('[other-mcp] Failed to parse SUBAGENT_MODELS:', e);
     return {};
   }
 }
