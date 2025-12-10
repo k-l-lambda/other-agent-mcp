@@ -194,10 +194,21 @@ server.tool(
 // Send message to existing session
 server.tool(
   'send_message',
-  'Send a message to an existing session and get a response. The conversation history is preserved.',
+  `Send a message to an existing session and get a response. The conversation history is preserved.
+
+Available agent tools:
+- read_file: Read file contents with optional line limit
+- list_directory: List directory contents with file sizes and modification times
+- grep: Search for regex pattern in files, returns matching lines with file paths and line numbers
+- glob: Find files matching a glob pattern (e.g., "*.ts", "*.json")
+- file_info: Get detailed file/directory metadata (size, permissions, timestamps)
+
+For models that only support single tool (like Gemini), use the 'tools' parameter to specify which tool(s) to enable.`,
   {
     session_id: z.string().describe('The session ID to send the message to'),
     message: z.string().describe('The message to send'),
+    enable_tools: z.boolean().optional().default(true).describe('Enable tool calling for the agent (default: true)'),
+    tools: z.array(z.string()).optional().describe('List of tool names to enable (e.g., ["list_directory"]). If not specified, all 5 tools are enabled.'),
   },
   async (args) => {
     try {
@@ -210,9 +221,9 @@ server.tool(
       }
 
       const providerInfo = getProviderInfo(session.model);
-      console.error(`[other-mcp] Sending message to session ${args.session_id} (model: ${providerInfo.model})`);
+      console.error(`[other-mcp] Sending message to session ${args.session_id} (model: ${providerInfo.model}, tools: ${args.enable_tools}, toolFilter: ${args.tools?.join(',') || 'all'})`);
 
-      const result = await runAgentWithSession(args.session_id, args.message);
+      const result = await runAgentWithSession(args.session_id, args.message, args.enable_tools, args.tools);
 
       const responseLines = [
         '## Response',

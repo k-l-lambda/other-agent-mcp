@@ -21,8 +21,9 @@ export async function runAgent(prompt: string, options: AgentOptions = {}, model
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  // Bind tools to model if enabled
-  const boundModel = enableTools && model.bindTools ? model.bindTools(allTools) : model;
+  // Bind tools to model if enabled (use strict: false for compatibility with non-OpenAI models like Gemini)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const boundModel = enableTools && model.bindTools ? model.bindTools(allTools, { strict: false } as any) : model;
 
   // Agent loop with tool calling
   for (let i = 0; i < maxIterations; i++) {
@@ -109,7 +110,7 @@ export async function runAgent(prompt: string, options: AgentOptions = {}, model
 }
 
 // Run agent with session context (maintains conversation history)
-export async function runAgentWithSession(sessionId: string, prompt: string, enableTools: boolean = true): Promise<AgentResult> {
+export async function runAgentWithSession(sessionId: string, prompt: string, enableTools: boolean = true, toolFilter?: string[]): Promise<AgentResult> {
   const session = getSession(sessionId);
   if (!session) {
     throw new Error(`Session not found: ${sessionId}`);
@@ -138,8 +139,33 @@ export async function runAgentWithSession(sessionId: string, prompt: string, ena
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
+  // Filter tools if specified
+  const toolsToUse = toolFilter && toolFilter.length > 0
+    ? allTools.filter(t => toolFilter.includes(t.name))
+    : allTools;
+
+  // Convert tools to OpenAI format and remove $schema field (Gemini doesn't support it)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { convertToOpenAITool } = await import('@langchain/core/utils/function_calling');
+  const convertedTools = toolsToUse.map(t => {
+    const converted = convertToOpenAITool(t, { strict: false });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params = converted.function?.parameters as any;
+    if (params?.$schema) {
+      delete params.$schema;
+    }
+    return converted;
+  });
+
   // Bind tools to model if enabled
-  const boundModel = enableTools && model.bindTools ? model.bindTools(allTools) : model;
+  let boundModel;
+  if (enableTools && model.bindTools && convertedTools.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    boundModel = model.bindTools(convertedTools as any, { strict: false } as any);
+  } else {
+    boundModel = model;
+  }
+
   const maxIterations = 10;
 
   // Agent loop with tool calling
@@ -159,7 +185,7 @@ export async function runAgentWithSession(sessionId: string, prompt: string, ena
 
       // Execute each tool call
       for (const tc of response.tool_calls) {
-        const tool = allTools.find(t => t.name === tc.name);
+        const tool = toolsToUse.find(t => t.name === tc.name);
         if (tool) {
           // Record tool use to session (before execution)
           addToolUse(sessionId, tc.name, tc.args as Record<string, unknown>);
