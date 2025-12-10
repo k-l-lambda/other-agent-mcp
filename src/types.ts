@@ -1,6 +1,7 @@
 export interface AgentOptions {
   systemPrompt?: string;
   maxIterations?: number;
+  enableTools?: boolean;
 }
 
 export interface ToolCall {

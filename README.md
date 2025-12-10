@@ -7,6 +7,7 @@ An MCP (Model Context Protocol) server that provides LangChain.js-powered subage
 - **Multi-provider support**: OpenAI-compatible APIs (Qwen, DeepSeek, local models) and Anthropic-compatible APIs
 - **Model registry**: Configure multiple models and switch between them at runtime
 - **Session management**: Create persistent conversations that maintain context across multiple messages
+- **Built-in tools**: Agents can read files, list directories, search with grep, and more
 - **Simple integration**: Works with Claude Code via `claude mcp add`
 
 ## Installation
@@ -239,6 +240,66 @@ Delete a conversation session.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `session_id` | string | Yes | The session ID to delete |
+
+## Agent Tools (Built-in)
+
+The agent has access to the following read-only tools for exploring the file system:
+
+### read_file
+
+Read the contents of a file.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `file_path` | string | Yes | The path to the file to read |
+| `max_lines` | number | No | Maximum number of lines to read |
+
+### list_directory
+
+List the contents of a directory with file sizes and modification times.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `directory_path` | string | Yes | The path to the directory to list |
+| `show_hidden` | boolean | No | Whether to show hidden files (default: false) |
+
+### grep
+
+Search for a pattern in files using regular expressions.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `pattern` | string | Yes | The regex pattern to search for |
+| `path` | string | Yes | The file or directory path to search in |
+| `ignore_case` | boolean | No | Whether to ignore case (default: false) |
+| `max_results` | number | No | Maximum number of results per file |
+
+### glob
+
+Find files matching a glob pattern.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `pattern` | string | Yes | The glob pattern to match (e.g., "*.ts") |
+| `path` | string | Yes | The directory to search in |
+
+### file_info
+
+Get detailed information about a file or directory.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `file_path` | string | Yes | The path to the file or directory |
 
 ## Provider Examples
 

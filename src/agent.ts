@@ -1,13 +1,16 @@
 import { createChatModel } from './providers.js';
-import type { AgentOptions, AgentResult, ToolCall, Session } from './types.js';
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
+import type { AgentOptions, AgentResult, ToolCall } from './types.js';
+import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
+import type { AIMessageChunk } from '@langchain/core/messages';
 import { getSession, addMessage } from './sessions.js';
+import { allTools } from './tools.js';
 
+// Run agent with tools (stateless)
 export async function runAgent(prompt: string, options: AgentOptions = {}, modelName?: string): Promise<AgentResult> {
   const model = createChatModel(modelName);
-  const { systemPrompt, maxIterations = 10 } = options;
+  const { systemPrompt, maxIterations = 10, enableTools = true } = options;
 
-  const messages: (HumanMessage | SystemMessage | AIMessage)[] = [];
+  const messages: (HumanMessage | SystemMessage | AIMessage | ToolMessage)[] = [];
 
   if (systemPrompt) {
     messages.push(new SystemMessage(systemPrompt));
@@ -18,33 +21,84 @@ export async function runAgent(prompt: string, options: AgentOptions = {}, model
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  // Simple agent loop - for now just a single LLM call
-  // In future, this can be extended to support tool calling
-  const response = await model.invoke(messages);
+  // Bind tools to model if enabled
+  const boundModel = enableTools && model.bindTools ? model.bindTools(allTools) : model;
 
-  // Extract content from response
-  let resultText = '';
-  if (typeof response.content === 'string') {
-    resultText = response.content;
-  } else if (Array.isArray(response.content)) {
-    resultText = response.content
-      .map(block => {
-        if (typeof block === 'string') return block;
-        if ('text' in block) return block.text;
-        return '';
-      })
-      .join('');
+  // Agent loop with tool calling
+  for (let i = 0; i < maxIterations; i++) {
+    const response = await boundModel.invoke(messages) as AIMessageChunk;
+
+    // Accumulate token usage
+    const usage = response.usage_metadata;
+    if (usage) {
+      totalInputTokens += usage.input_tokens || 0;
+      totalOutputTokens += usage.output_tokens || 0;
+    }
+
+    // Check if there are tool calls
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      messages.push(response);
+
+      // Execute each tool call
+      for (const tc of response.tool_calls) {
+        const tool = allTools.find(t => t.name === tc.name);
+        if (tool) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = await (tool as any).invoke(tc.args);
+            toolCalls.push({
+              name: tc.name,
+              args: tc.args as Record<string, unknown>,
+              result: String(result),
+            });
+            messages.push(new ToolMessage({
+              tool_call_id: tc.id || '',
+              content: String(result),
+            }));
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            toolCalls.push({
+              name: tc.name,
+              args: tc.args as Record<string, unknown>,
+              result: `Error: ${errorMsg}`,
+            });
+            messages.push(new ToolMessage({
+              tool_call_id: tc.id || '',
+              content: `Error: ${errorMsg}`,
+            }));
+          }
+        }
+      }
+    } else {
+      // No tool calls, extract final response
+      let resultText = '';
+      if (typeof response.content === 'string') {
+        resultText = response.content;
+      } else if (Array.isArray(response.content)) {
+        resultText = response.content
+          .map(block => {
+            if (typeof block === 'string') return block;
+            if ('text' in block) return (block as { text: string }).text;
+            return '';
+          })
+          .join('');
+      }
+
+      return {
+        result: resultText,
+        toolCalls,
+        tokens: {
+          input: totalInputTokens,
+          output: totalOutputTokens,
+          total: totalInputTokens + totalOutputTokens,
+        },
+      };
+    }
   }
 
-  // Extract token usage if available
-  const usage = response.usage_metadata;
-  if (usage) {
-    totalInputTokens = usage.input_tokens || 0;
-    totalOutputTokens = usage.output_tokens || 0;
-  }
-
+  // Max iterations reached
   return {
-    result: resultText,
+    result: '[Max iterations reached]',
     toolCalls,
     tokens: {
       input: totalInputTokens,
@@ -55,7 +109,7 @@ export async function runAgent(prompt: string, options: AgentOptions = {}, model
 }
 
 // Run agent with session context (maintains conversation history)
-export async function runAgentWithSession(sessionId: string, prompt: string): Promise<AgentResult> {
+export async function runAgentWithSession(sessionId: string, prompt: string, enableTools: boolean = true): Promise<AgentResult> {
   const session = getSession(sessionId);
   if (!session) {
     throw new Error(`Session not found: ${sessionId}`);
@@ -64,7 +118,7 @@ export async function runAgentWithSession(sessionId: string, prompt: string): Pr
   const model = createChatModel(session.model);
 
   // Build messages from session history
-  const messages: (HumanMessage | SystemMessage | AIMessage)[] = [];
+  const messages: (HumanMessage | SystemMessage | AIMessage | ToolMessage)[] = [];
 
   for (const msg of session.messages) {
     if (msg.role === 'system') {
@@ -84,32 +138,88 @@ export async function runAgentWithSession(sessionId: string, prompt: string): Pr
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  // Invoke model
-  const response = await model.invoke(messages);
+  // Bind tools to model if enabled
+  const boundModel = enableTools && model.bindTools ? model.bindTools(allTools) : model;
+  const maxIterations = 10;
 
-  // Extract content from response
-  let resultText = '';
-  if (typeof response.content === 'string') {
-    resultText = response.content;
-  } else if (Array.isArray(response.content)) {
-    resultText = response.content
-      .map(block => {
-        if (typeof block === 'string') return block;
-        if ('text' in block) return block.text;
-        return '';
-      })
-      .join('');
+  // Agent loop with tool calling
+  for (let i = 0; i < maxIterations; i++) {
+    const response = await boundModel.invoke(messages) as AIMessageChunk;
+
+    // Accumulate token usage
+    const usage = response.usage_metadata;
+    if (usage) {
+      totalInputTokens += usage.input_tokens || 0;
+      totalOutputTokens += usage.output_tokens || 0;
+    }
+
+    // Check if there are tool calls
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      messages.push(response);
+
+      // Execute each tool call
+      for (const tc of response.tool_calls) {
+        const tool = allTools.find(t => t.name === tc.name);
+        if (tool) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = await (tool as any).invoke(tc.args);
+            toolCalls.push({
+              name: tc.name,
+              args: tc.args as Record<string, unknown>,
+              result: String(result),
+            });
+            messages.push(new ToolMessage({
+              tool_call_id: tc.id || '',
+              content: String(result),
+            }));
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            toolCalls.push({
+              name: tc.name,
+              args: tc.args as Record<string, unknown>,
+              result: `Error: ${errorMsg}`,
+            });
+            messages.push(new ToolMessage({
+              tool_call_id: tc.id || '',
+              content: `Error: ${errorMsg}`,
+            }));
+          }
+        }
+      }
+    } else {
+      // No tool calls, extract final response
+      let resultText = '';
+      if (typeof response.content === 'string') {
+        resultText = response.content;
+      } else if (Array.isArray(response.content)) {
+        resultText = response.content
+          .map(block => {
+            if (typeof block === 'string') return block;
+            if ('text' in block) return (block as { text: string }).text;
+            return '';
+          })
+          .join('');
+      }
+
+      // Save assistant response to session
+      addMessage(sessionId, 'assistant', resultText);
+
+      return {
+        result: resultText,
+        toolCalls,
+        tokens: {
+          input: totalInputTokens,
+          output: totalOutputTokens,
+          total: totalInputTokens + totalOutputTokens,
+        },
+      };
+    }
   }
 
-  // Save assistant response to session
+  // Max iterations reached
+  const resultText = '[Max iterations reached]';
   addMessage(sessionId, 'assistant', resultText);
-
-  // Extract token usage if available
-  const usage = response.usage_metadata;
-  if (usage) {
-    totalInputTokens = usage.input_tokens || 0;
-    totalOutputTokens = usage.output_tokens || 0;
-  }
 
   return {
     result: resultText,
