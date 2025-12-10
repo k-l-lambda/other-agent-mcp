@@ -1,11 +1,12 @@
 # Other MCP
 
-An MCP (Model Context Protocol) server that provides a LangChain.js-powered subagent tool. It allows Claude Code (or any MCP client) to delegate tasks to another LLM.
+An MCP (Model Context Protocol) server that provides LangChain.js-powered subagent tools with session management. It allows Claude Code (or any MCP client) to delegate tasks to another LLM while maintaining conversation context.
 
 ## Features
 
 - **Multi-provider support**: OpenAI-compatible APIs (Qwen, DeepSeek, local models) and Anthropic-compatible APIs
 - **Model registry**: Configure multiple models and switch between them at runtime
+- **Session management**: Create persistent conversations that maintain context across multiple messages
 - **Simple integration**: Works with Claude Code via `claude mcp add`
 
 ## Installation
@@ -129,7 +130,7 @@ claude mcp add -s user subagent \
 
 ### run_agent
 
-Run a LangChain agent with the given prompt.
+Run a LangChain agent with the given prompt (stateless, single-turn).
 
 **Parameters:**
 
@@ -143,8 +144,8 @@ Run a LangChain agent with the given prompt.
 **Example:**
 
 ```
-mcp__subagent__run_agent(prompt="Summarize the key points of quantum computing")
-mcp__subagent__run_agent(prompt="Translate to Chinese", model="qwen-turbo")
+mcp__other__run_agent(prompt="Summarize the key points of quantum computing")
+mcp__other__run_agent(prompt="Translate to Chinese", model="qwen-turbo")
 ```
 
 ### list_models
@@ -165,6 +166,79 @@ List all available models configured in SUBAGENT_MODELS.
 
 Use the `model` parameter in `run_agent` to select a model by name.
 ```
+
+### create_session
+
+Create a new conversation session that maintains context across multiple messages.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `model` | string | No | Model name from SUBAGENT_MODELS |
+| `system_prompt` | string | No | System prompt for the session |
+
+**Example:**
+
+```
+mcp__other__create_session(model="gpt-5.1", system_prompt="You are a helpful assistant")
+# Returns: session_id
+```
+
+### send_message
+
+Send a message to an existing session and get a response. The conversation history is preserved.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `session_id` | string | Yes | The session ID to send the message to |
+| `message` | string | Yes | The message to send |
+
+**Example:**
+
+```
+mcp__other__send_message(session_id="abc-123", message="Hello, how are you?")
+mcp__other__send_message(session_id="abc-123", message="What did I just say?")
+# The agent remembers the previous message
+```
+
+### list_sessions
+
+List all active conversation sessions.
+
+**Example output:**
+
+```
+## Active Sessions
+
+| Session ID | Model | Messages | Last Active |
+|------------|-------|----------|-------------|
+| `d7fbfd49...` | gpt-5.1 | 7 | 2025-12-10T07:59:32.956Z |
+
+Total: 1 session(s)
+```
+
+### get_session_history
+
+Get the conversation history of a specific session.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `session_id` | string | Yes | The session ID to get history for |
+
+### delete_session
+
+Delete a conversation session.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `session_id` | string | Yes | The session ID to delete |
 
 ## Provider Examples
 
