@@ -1,5 +1,89 @@
 import { randomUUID } from 'crypto';
+import { writeFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import type { Session, SessionMessage } from './types.js';
+
+// Get sessions directory path (relative to package root)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const SESSIONS_DIR = join(__dirname, '..', 'sessions');
+
+// Ensure sessions directory exists
+function ensureSessionsDir(): void {
+  if (!existsSync(SESSIONS_DIR)) {
+    mkdirSync(SESSIONS_DIR, { recursive: true });
+  }
+}
+
+// Get markdown file path for a session
+function getSessionFilePath(sessionId: string): string {
+  return join(SESSIONS_DIR, `${sessionId}.md`);
+}
+
+// Format timestamp for display
+function formatTimestamp(ts: number): string {
+  return new Date(ts).toISOString().replace('T', ' ').slice(0, 19);
+}
+
+// Save session to markdown file
+function saveSessionToFile(session: Session): void {
+  ensureSessionsDir();
+
+  const lines: string[] = [
+    `# Session: ${session.id}`,
+    '',
+    `- **Model:** ${session.model || '_default'}`,
+    `- **Created:** ${formatTimestamp(session.createdAt)}`,
+    `- **Last Active:** ${formatTimestamp(session.lastActiveAt)}`,
+    '',
+    '---',
+    '',
+  ];
+
+  for (const msg of session.messages) {
+    const timestamp = formatTimestamp(msg.timestamp);
+    let roleHeader = '';
+
+    switch (msg.role) {
+      case 'system':
+        roleHeader = `## 🔧 System Prompt`;
+        break;
+      case 'user':
+        roleHeader = `## 👤 User [${timestamp}]`;
+        break;
+      case 'assistant':
+        roleHeader = `## 🤖 Assistant [${timestamp}]`;
+        break;
+    }
+
+    lines.push(roleHeader);
+    lines.push('');
+
+    // For assistant messages, wrap content after first paragraph in <details>
+    if (msg.role === 'assistant') {
+      const paragraphs = msg.content.split(/\n\n+/);
+      if (paragraphs.length > 1) {
+        // First paragraph as summary
+        lines.push(paragraphs[0]);
+        lines.push('');
+        lines.push('<details>');
+        lines.push('<summary>More details...</summary>');
+        lines.push('');
+        lines.push(paragraphs.slice(1).join('\n\n'));
+        lines.push('');
+        lines.push('</details>');
+      } else {
+        lines.push(msg.content);
+      }
+    } else {
+      lines.push(msg.content);
+    }
+    lines.push('');
+  }
+
+  writeFileSync(getSessionFilePath(session.id), lines.join('\n'), 'utf-8');
+}
 
 // In-memory session storage
 const sessions = new Map<string, Session>();
@@ -27,6 +111,10 @@ export function createSession(options: { model?: string; systemPrompt?: string }
   }
 
   sessions.set(id, session);
+
+  // Save to file
+  saveSessionToFile(session);
+
   return session;
 }
 
@@ -46,6 +134,9 @@ export function addMessage(sessionId: string, role: 'user' | 'assistant', conten
   });
   session.lastActiveAt = now;
 
+  // Save to file after each message
+  saveSessionToFile(session);
+
   return session;
 }
 
@@ -54,7 +145,21 @@ export function listSessions(): Session[] {
 }
 
 export function deleteSession(sessionId: string): boolean {
-  return sessions.delete(sessionId);
+  const deleted = sessions.delete(sessionId);
+
+  // Also delete the markdown file
+  if (deleted) {
+    const filePath = getSessionFilePath(sessionId);
+    if (existsSync(filePath)) {
+      try {
+        unlinkSync(filePath);
+      } catch {
+        // Ignore errors when deleting file
+      }
+    }
+  }
+
+  return deleted;
 }
 
 export function clearAllSessions(): void {
@@ -63,4 +168,8 @@ export function clearAllSessions(): void {
 
 export function getSessionCount(): number {
   return sessions.size;
+}
+
+export function getSessionsDir(): string {
+  return SESSIONS_DIR;
 }

@@ -7,6 +7,7 @@ An MCP (Model Context Protocol) server that provides LangChain.js-powered subage
 - **Multi-provider support**: OpenAI-compatible APIs (Qwen, DeepSeek, local models) and Anthropic-compatible APIs
 - **Model registry**: Configure multiple models and switch between them at runtime
 - **Session management**: Create persistent conversations that maintain context across multiple messages
+- **Session logging**: All conversations are automatically saved as markdown files in the `sessions/` directory
 - **Built-in tools**: Agents can read files, list directories, search with grep, and more
 - **Simple integration**: Works with Claude Code via `claude mcp add`
 
