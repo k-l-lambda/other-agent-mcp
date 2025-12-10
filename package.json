@@ -1,0 +1,31 @@
+{
+  "name": "subagent-mcp",
+  "version": "1.0.0",
+  "description": "MCP server that runs LangChain.js agents as subagents",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "subagent-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@langchain/anthropic": "^1.2.3",
+    "@langchain/core": "^1.1.4",
+    "@langchain/openai": "^1.1.3",
+    "@modelcontextprotocol/sdk": "^1.24.3",
+    "langchain": "^1.1.5",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
