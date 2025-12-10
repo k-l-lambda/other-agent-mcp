@@ -17,8 +17,15 @@ function ensureSessionsDir(): void {
 }
 
 // Get markdown file path for a session
-function getSessionFilePath(sessionId: string): string {
-  return join(SESSIONS_DIR, `${sessionId}.md`);
+function getSessionFilePath(session: Session): string {
+  const date = new Date(session.createdAt);
+  const prefix = date.getFullYear().toString() +
+    (date.getMonth() + 1).toString().padStart(2, '0') +
+    date.getDate().toString().padStart(2, '0') + 'T' +
+    date.getHours().toString().padStart(2, '0') +
+    date.getMinutes().toString().padStart(2, '0') +
+    date.getSeconds().toString().padStart(2, '0');
+  return join(SESSIONS_DIR, `${prefix}_${session.id}.md`);
 }
 
 // Format timestamp for display
@@ -92,7 +99,7 @@ function saveSessionToFile(session: Session): void {
     lines.push('');
   }
 
-  writeFileSync(getSessionFilePath(session.id), lines.join('\n'), 'utf-8');
+  writeFileSync(getSessionFilePath(session), lines.join('\n'), 'utf-8');
 }
 
 // In-memory session storage
@@ -175,11 +182,11 @@ export function listSessions(): Session[] {
 }
 
 export function deleteSession(sessionId: string): boolean {
-  const deleted = sessions.delete(sessionId);
+  const session = sessions.get(sessionId);
 
-  // Also delete the markdown file
-  if (deleted) {
-    const filePath = getSessionFilePath(sessionId);
+  // Delete the markdown file first (need session for filename)
+  if (session) {
+    const filePath = getSessionFilePath(session);
     if (existsSync(filePath)) {
       try {
         unlinkSync(filePath);
@@ -189,7 +196,7 @@ export function deleteSession(sessionId: string): boolean {
     }
   }
 
-  return deleted;
+  return sessions.delete(sessionId);
 }
 
 export function clearAllSessions(): void {
