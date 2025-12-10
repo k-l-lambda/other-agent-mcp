@@ -2,7 +2,7 @@ import { createChatModel } from './providers.js';
 import type { AgentOptions, AgentResult, ToolCall } from './types.js';
 import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
 import type { AIMessageChunk } from '@langchain/core/messages';
-import { getSession, addMessage } from './sessions.js';
+import { getSession, addMessage, addToolUse } from './sessions.js';
 import { allTools } from './tools.js';
 
 // Run agent with tools (stateless)
@@ -161,6 +161,9 @@ export async function runAgentWithSession(sessionId: string, prompt: string, ena
       for (const tc of response.tool_calls) {
         const tool = allTools.find(t => t.name === tc.name);
         if (tool) {
+          // Record tool use to session (before execution)
+          addToolUse(sessionId, tc.name, tc.args as Record<string, unknown>);
+
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const result = await (tool as any).invoke(tc.args);

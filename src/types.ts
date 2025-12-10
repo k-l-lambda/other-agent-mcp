@@ -40,9 +40,11 @@ export interface ModelsRegistry {
 
 // Session management types
 export interface SessionMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool_use';
   content: string;
   timestamp: number;
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
 }
 
 export interface Session {

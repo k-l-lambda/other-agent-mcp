@@ -55,6 +55,9 @@ function saveSessionToFile(session: Session): void {
       case 'assistant':
         roleHeader = `## 🤖 Assistant [${timestamp}]`;
         break;
+      case 'tool_use':
+        roleHeader = `## 🛠️ Tool: ${msg.toolName || 'unknown'} [${timestamp}]`;
+        break;
     }
 
     lines.push(roleHeader);
@@ -75,6 +78,13 @@ function saveSessionToFile(session: Session): void {
         lines.push('</details>');
       } else {
         lines.push(msg.content);
+      }
+    } else if (msg.role === 'tool_use') {
+      // Format tool arguments as code block
+      if (msg.toolArgs) {
+        lines.push('```json');
+        lines.push(JSON.stringify(msg.toolArgs, null, 2));
+        lines.push('```');
       }
     } else {
       lines.push(msg.content);
@@ -135,6 +145,26 @@ export function addMessage(sessionId: string, role: 'user' | 'assistant', conten
   session.lastActiveAt = now;
 
   // Save to file after each message
+  saveSessionToFile(session);
+
+  return session;
+}
+
+export function addToolUse(sessionId: string, toolName: string, toolArgs: Record<string, unknown>): Session | undefined {
+  const session = sessions.get(sessionId);
+  if (!session) return undefined;
+
+  const now = Date.now();
+  session.messages.push({
+    role: 'tool_use',
+    content: '',
+    timestamp: now,
+    toolName,
+    toolArgs,
+  });
+  session.lastActiveAt = now;
+
+  // Save to file after each tool use
   saveSessionToFile(session);
 
   return session;
