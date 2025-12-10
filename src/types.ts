@@ -23,4 +23,16 @@ export interface RunAgentInput {
   prompt: string;
   system_prompt?: string;
   max_iterations?: number;
+  model?: string;
+}
+
+export interface ModelConfig {
+  provider: 'openai' | 'anthropic';
+  modelId: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
+
+export interface ModelsRegistry {
+  [modelName: string]: ModelConfig;
 }

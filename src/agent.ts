@@ -2,8 +2,8 @@ import { createChatModel } from './providers.js';
 import type { AgentOptions, AgentResult, ToolCall } from './types.js';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 
-export async function runAgent(prompt: string, options: AgentOptions = {}): Promise<AgentResult> {
-  const model = createChatModel();
+export async function runAgent(prompt: string, options: AgentOptions = {}, modelName?: string): Promise<AgentResult> {
+  const model = createChatModel(modelName);
   const { systemPrompt, maxIterations = 10 } = options;
 
   const messages: (HumanMessage | SystemMessage | AIMessage)[] = [];
