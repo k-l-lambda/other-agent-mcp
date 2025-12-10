@@ -36,3 +36,19 @@ export interface ModelConfig {
 export interface ModelsRegistry {
   [modelName: string]: ModelConfig;
 }
+
+// Session management types
+export interface SessionMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
+export interface Session {
+  id: string;
+  model?: string;
+  systemPrompt?: string;
+  messages: SessionMessage[];
+  createdAt: number;
+  lastActiveAt: number;
+}

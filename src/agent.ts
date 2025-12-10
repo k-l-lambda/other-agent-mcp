@@ -1,6 +1,7 @@
 import { createChatModel } from './providers.js';
-import type { AgentOptions, AgentResult, ToolCall } from './types.js';
+import type { AgentOptions, AgentResult, ToolCall, Session } from './types.js';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
+import { getSession, addMessage } from './sessions.js';
 
 export async function runAgent(prompt: string, options: AgentOptions = {}, modelName?: string): Promise<AgentResult> {
   const model = createChatModel(modelName);
@@ -34,6 +35,74 @@ export async function runAgent(prompt: string, options: AgentOptions = {}, model
       })
       .join('');
   }
+
+  // Extract token usage if available
+  const usage = response.usage_metadata;
+  if (usage) {
+    totalInputTokens = usage.input_tokens || 0;
+    totalOutputTokens = usage.output_tokens || 0;
+  }
+
+  return {
+    result: resultText,
+    toolCalls,
+    tokens: {
+      input: totalInputTokens,
+      output: totalOutputTokens,
+      total: totalInputTokens + totalOutputTokens,
+    },
+  };
+}
+
+// Run agent with session context (maintains conversation history)
+export async function runAgentWithSession(sessionId: string, prompt: string): Promise<AgentResult> {
+  const session = getSession(sessionId);
+  if (!session) {
+    throw new Error(`Session not found: ${sessionId}`);
+  }
+
+  const model = createChatModel(session.model);
+
+  // Build messages from session history
+  const messages: (HumanMessage | SystemMessage | AIMessage)[] = [];
+
+  for (const msg of session.messages) {
+    if (msg.role === 'system') {
+      messages.push(new SystemMessage(msg.content));
+    } else if (msg.role === 'user') {
+      messages.push(new HumanMessage(msg.content));
+    } else if (msg.role === 'assistant') {
+      messages.push(new AIMessage(msg.content));
+    }
+  }
+
+  // Add the new user message
+  messages.push(new HumanMessage(prompt));
+  addMessage(sessionId, 'user', prompt);
+
+  const toolCalls: ToolCall[] = [];
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+
+  // Invoke model
+  const response = await model.invoke(messages);
+
+  // Extract content from response
+  let resultText = '';
+  if (typeof response.content === 'string') {
+    resultText = response.content;
+  } else if (Array.isArray(response.content)) {
+    resultText = response.content
+      .map(block => {
+        if (typeof block === 'string') return block;
+        if ('text' in block) return block.text;
+        return '';
+      })
+      .join('');
+  }
+
+  // Save assistant response to session
+  addMessage(sessionId, 'assistant', resultText);
 
   // Extract token usage if available
   const usage = response.usage_metadata;
